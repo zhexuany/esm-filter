@@ -92,7 +92,7 @@ func (s *Server) Run() {
 						//keep reading until receive a tick
 						buf, err := s.client.Read()
 						if err != nil {
-							s.logOutput.Println("failed to read udp packet")
+							s.logOutput.Write([]byte("failed to read udp packet"))
 						} else {
 							inputChan <- buf
 						}
@@ -116,7 +116,7 @@ func (s *Server) Run() {
 
 					p, err := influxDBClient.NewPoint(tagValueStr[0], tags, value.Fields(), time.Now().UTC())
 					if err != nil {
-						s.logOutput.Println("failed to parse points")
+						s.logOutput.Write([]byte("failed to parse points"))
 					}
 					s.points.AddPoint(p)
 				}
@@ -132,7 +132,7 @@ func (s *Server) write() {
 	}
 	udpClient, err := influxDBClient.NewUDPClient(udpConfig)
 	if err != nil {
-		s.logOutput.Println("failed to create udpClient")
+		s.logOutput.Write([]byte("failed to create udpClient"))
 	}
 	udpClient.Write(s.points)
 }

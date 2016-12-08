@@ -3,6 +3,7 @@ package run
 import (
 	"flag"
 	"fmt"
+	"github.com/zhexuany/esm-filter/client"
 	"io"
 	"log"
 	"os"
@@ -65,7 +66,22 @@ func (cmd *Command) Run(args ...string) error {
 	log.Printf("Go version %s, GOMAXPROCS set to %d", runtime.Version(), runtime.GOMAXPROCS(0))
 
 	log.Println(options.GetConfigPath())
+
+	config, err := client.ParseConfig(options.GetConfigPath())
+	if err != nil {
+		return fmt.Errorf("parse config:%s", err)
+	}
 	//TODO create a new server
+	cmd.Server = NewServer(config)
+	return nil
+}
+
+func (cmd *Command) Close() error {
+	defer close(cmd.Closed)
+	close(cmd.closing)
+	if cmd.Server != nil {
+		return cmd.Server.Close()
+	}
 	return nil
 }
 

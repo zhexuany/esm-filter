@@ -11,6 +11,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/zhexuany/esm-filter/run"
 )
 
 // These variables are populated via the Go linker.
@@ -86,20 +88,19 @@ func ParseCommandName(args []string) (string, []string) {
 
 func (m *Main) Run(args ...string) error {
 	name, args := ParseCommandName(args)
-
+	cmd := run.NewCommand()
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 	m.Logger.Println("Listening for signals")
-
 	switch name {
 	case "", "run":
 		// Block until one of the signals above is received
 		select {
 		case <-signalCh:
 			m.Logger.Println("Signal received, initializing clean shutdown...")
-			// go func() {
-			// cmd.Close()
-			// }()
+			go func() {
+				cmd.Close()
+			}()
 		}
 
 		// Block again until another signal is received, a shutdown timeout elapses,
