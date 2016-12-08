@@ -14,7 +14,7 @@ type Client struct {
 	ln       *net.UDPConn
 }
 
-func NewClient(config Config) *Client {
+func NewClient(config *Config) *Client {
 	c := &Client{bindAddr: config.BindAddress}
 	return c
 }

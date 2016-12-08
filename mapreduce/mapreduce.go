@@ -7,7 +7,7 @@ type MapperCollector chan chan interface{}
 type MapperFunc func(interface{}, chan interface{})
 
 // ReducerFunc is a function that performs the reduce part of the MapReduce job
-type ReducerFunc func(interface{}, chan interface{})
+type ReducerFunc func(chan interface{}, chan interface{})
 
 func mapperDispatcher(mapper MapperFunc, input chan interface{}, collector MapperCollector) {
 	for item := range input {
@@ -15,7 +15,6 @@ func mapperDispatcher(mapper MapperFunc, input chan interface{}, collector Mappe
 		go mapper(item, taskOutput)
 		collector <- taskOutput
 	}
-
 	close(collector)
 }
 
