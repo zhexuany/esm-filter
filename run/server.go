@@ -23,8 +23,6 @@ type Server struct {
 	Listener net.Listener
 	Logger   *log.Logger
 
-	config *client.Config
-
 	client *client.Client
 
 	logOutput io.Writer
@@ -36,6 +34,8 @@ type Server struct {
 	closing chan struct{}
 
 	ticker *time.Ticker
+
+	downstream string
 }
 
 var ErrServerOpened = errors.New("Server is already opened")
@@ -45,10 +45,10 @@ func NewServer(c *client.Config) *Server {
 		Logger:      log.New(os.Stderr, "", log.LstdFlags),
 		BindAddress: c.BindAddress,
 		logOutput:   os.Stderr,
-		config:      c,
 		opened:      false,
 		client:      client.NewClient(c),
 		ticker:      time.NewTicker(c.Ticket),
+		downstream:  c.Downstream,
 	}
 }
 
@@ -127,11 +127,14 @@ func (s *Server) Run() {
 }
 
 func (s *Server) write() {
-	//formate influxdb line protocol
-	//open formal request and write
-	// for i := 0; i < s.points.Len(); i++ {
-	// p := s.points[i].MarshalBinary()
-	// udpClient := influxDBClient
+	udpConfig := influxDBClient.UDPConfig{
+		Addr: s.downstream,
+	}
+	udpClient, err := influxDBClient.NewUDPClient(udpConfig)
+	if err != nil {
+		fmt.Println("failed to create udpClient")
+	}
+	udpClient.Write(s.points)
 }
 
 func (s *Server) Err() <-chan error { return s.err }
