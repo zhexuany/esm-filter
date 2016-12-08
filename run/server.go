@@ -92,7 +92,7 @@ func (s *Server) Run() {
 						//keep reading until receive a tick
 						buf, err := s.client.Read()
 						if err != nil {
-							fmt.Println("failed to read udp packet")
+							s.logOutput.Println("failed to read udp packet")
 						} else {
 							inputChan <- buf
 						}
@@ -116,7 +116,7 @@ func (s *Server) Run() {
 
 					p, err := influxDBClient.NewPoint(tagValueStr[0], tags, value.Fields(), time.Now().UTC())
 					if err != nil {
-						fmt.Println("failed to parse points")
+						s.logOutput.Println("failed to parse points")
 					}
 					s.points.AddPoint(p)
 				}
@@ -132,7 +132,7 @@ func (s *Server) write() {
 	}
 	udpClient, err := influxDBClient.NewUDPClient(udpConfig)
 	if err != nil {
-		fmt.Println("failed to create udpClient")
+		s.logOutput.Println("failed to create udpClient")
 	}
 	udpClient.Write(s.points)
 }
@@ -204,7 +204,6 @@ func mapper(input interface{}, output chan interface{}) {
 	}
 
 	output <- o
-	//requests,host=$hostname,server_name=$host,path=$uri total_request_times=$request_number, total_failure_times=$failure_times,total_response_time=$request_time,%s, ${udp_usec}000
 }
 
 type RequestStatReducer struct {
@@ -229,6 +228,7 @@ func (rsr *RequestStatReducer) Update(value RequestStatMapper) {
 			}
 		}
 	}
+
 	codeStr := fmt.Sprintf("%d", value.statusCode)
 	if _, existed := rsr.fields[codeStr]; !existed {
 		rsr.fields[codeStr] = uint64(1)
@@ -244,7 +244,6 @@ func (rsr *RequestStatReducer) Update(value RequestStatMapper) {
 		if val, ok := rsr.fields["totalResponseTime"].(float64); ok {
 			rsr.fields["totalResponseTime"] = val + value.responseTime
 		}
-
 	}
 }
 
