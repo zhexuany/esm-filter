@@ -1,7 +1,11 @@
-package main
+package run
 
 import (
 	"flag"
+	"fmt"
+	"io"
+	"log"
+	"os"
 	"runtime"
 )
 
@@ -45,7 +49,7 @@ func NewCommand() *Command {
 }
 
 func (cmd *Command) Run(args ...string) error {
-	options, err := cmd.ParseFlags(args)
+	options, err := cmd.ParseFlags(args...)
 	if err != nil {
 		return nil
 	}
@@ -60,7 +64,9 @@ func (cmd *Command) Run(args ...string) error {
 		cmd.Version, cmd.Branch, cmd.Commit)
 	log.Printf("Go version %s, GOMAXPROCS set to %d", runtime.Version(), runtime.GOMAXPROCS(0))
 
+	log.Println(options.GetConfigPath())
 	//TODO create a new server
+	return nil
 }
 
 func (cmd *Command) ParseFlags(args ...string) (Options, error) {

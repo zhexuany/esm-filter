@@ -35,10 +35,11 @@ func TestClient_Read(t *testing.T) {
 		t.Errorf("failed to create listener", err)
 	}
 	c.ln = clientLn
-	str, err := c.Read()
+	buf, err := c.Read()
 	if err != nil {
 		t.Errorf("failed to read", err)
 	}
+	str := string(buf)
 	if str != testMsg {
 		t.Errorf("Expected the message %s wth length %d but found %s with length %d", testMsg, len(testMsg), str, len(str))
 	}

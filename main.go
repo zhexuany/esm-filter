@@ -4,8 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
+	"math/rand"
 	"os"
 	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 )
 
@@ -33,7 +37,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	m := NewMain()
 	if err := m.Run(os.Args[1:]...); err != nil {
-		fmt.Fprintf(os.Stderr, er)
+		fmt.Fprintf(os.Stderr, "failed to Run ", err)
 		os.Exit(1)
 	}
 }
@@ -93,9 +97,9 @@ func (m *Main) Run(args ...string) error {
 		select {
 		case <-signalCh:
 			m.Logger.Println("Signal received, initializing clean shutdown...")
-			go func() {
-				cmd.Close()
-			}()
+			// go func() {
+			// cmd.Close()
+			// }()
 		}
 
 		// Block again until another signal is received, a shutdown timeout elapses,
@@ -106,8 +110,8 @@ func (m *Main) Run(args ...string) error {
 			m.Logger.Println("second signal received, initializing hard shutdown")
 		case <-time.After(time.Second * 30):
 			m.Logger.Println("time limit reached, initializing hard shutdown")
-		case <-cmd.Closed:
-			m.Logger.Println("server shutdown completed")
+			// case <-cmd.Closed:
+			// m.Logger.Println("server shutdown completed")
 		}
 
 	case "config":
@@ -140,7 +144,8 @@ func (cmd *VersionCommand) Run(args ...string) error {
 		return err
 	}
 
-	fmt.Fprintln(cmd.Std, "esm-filter v%s (git : %s %s)", version, branch, commit)
+	// fmt.Fprintln(cmd.Std, "esm-filter v%s (git : %s %s)", version, branch, commit)
+	return nil
 }
 
 var versionUsage = `Display the esm-filter version, build branch and git commit hash.

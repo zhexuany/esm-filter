@@ -3,8 +3,6 @@ package client
 import (
 	"errors"
 	"net"
-
-	"github.com/zhexuany/esm-filter/run"
 )
 
 var (
@@ -16,7 +14,7 @@ type Client struct {
 	ln       *net.UDPConn
 }
 
-func NewClient(config run.Config) *Client {
+func NewClient(config Config) *Client {
 	c := &Client{bindAddr: config.BindAddress}
 	return c
 }
@@ -40,23 +38,13 @@ func (c *Client) Close() error {
 	return c.ln.Close()
 }
 
-func (c *Client) Read() (string, error) {
+func (c *Client) Read() ([]byte, error) {
 	buf := make([]byte, 1024)
 	n, _, err := c.ln.ReadFromUDP(buf)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	//convert bytes array to string
-	str := string(buf[:n])
-
-	return str, nil
-}
-
-func mapper(input interface{}, output chan interface{}) {
-
-}
-
-func reducer(input chan interface{}, output chan interface{}) {
-
+	return buf[:n], nil
 }
