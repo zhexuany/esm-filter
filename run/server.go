@@ -8,10 +8,13 @@ import (
 	"os"
 
 	"fmt"
+	influxDBClient "github.com/influxdata/influxdb/client/v2"
 	"github.com/influxdata/influxdb/models"
 	"github.com/zhexuany/esm-filter/client"
 	"github.com/zhexuany/esm-filter/mapreduce"
 	"strconv"
+	"strings"
+	"time"
 )
 
 type Server struct {
@@ -27,8 +30,12 @@ type Server struct {
 	logOutput io.Writer
 	opened    bool
 
+	points influxDBClient.BatchPoints
+
 	err     chan error
 	closing chan struct{}
+
+	ticker *time.Ticker
 }
 
 var ErrServerOpened = errors.New("Server is already opened")
@@ -41,6 +48,7 @@ func NewServer(c *client.Config) *Server {
 		config:      c,
 		opened:      false,
 		client:      client.NewClient(c),
+		ticker:      time.NewTicker(c.Ticket),
 	}
 }
 
@@ -60,23 +68,77 @@ func (s *Server) Open() error {
 	//TODO revist this later
 	//updated opened at end of Open function
 	s.opened = true
-	s.client.Open()
+	if err := s.client.Open(); err != nil {
+		return nil
+	}
+
 	return nil
 }
 
 func (s *Server) Run() {
 	for {
-		s.client.Read()
-		inputChan := make(chan interface{})
-		go mapreduce.MapReduce(mapper, reducer, inputChan)
+		var inputChan chan interface{}
+		go func() {
+			for {
+				inputChan = make(chan interface{})
+				for {
+					select {
+					//got a tick, break it
+					case <-s.ticker.C:
+						close(inputChan)
+						s.write()
+						break
+					default:
+						//keep reading until receive a tick
+						buf, err := s.client.Read()
+						if err != nil {
+							fmt.Println("failed to read udp packet")
+						} else {
+							inputChan <- buf
+						}
+					}
+				}
+			}
+		}()
+
+		go func() {
+			results := mapreduce.MapReduce(mapper, reducer, inputChan)
+			//every key and value is a point
+			if res, ok := results.(map[string]RequestStatReducer); ok {
+				for key, value := range res {
+					tags := make(map[string]string)
+					tagValueStr := strings.Split(key, ",")
+					if len(tagValueStr) == 4 {
+						tags["host"] = tagValueStr[1]
+						tags["server_name"] = tagValueStr[2]
+						tags["path"] = tagValueStr[3]
+					}
+
+					p, err := influxDBClient.NewPoint(tagValueStr[0], tags, value.Fields(), time.Now().UTC())
+					if err != nil {
+						fmt.Println("failed to parse points")
+					}
+					s.points.AddPoint(p)
+				}
+			}
+
+		}()
 	}
+}
+
+func (s *Server) write() {
+	//formate influxdb line protocol
+	//open formal request and write
+	// for i := 0; i < s.points.Len(); i++ {
+	// p := s.points[i].MarshalBinary()
+	// udpClient := influxDBClient
 }
 
 func (s *Server) Err() <-chan error { return s.err }
 
 func (s *Server) Close() error {
 	if s.Listener != nil {
-		s.Listener.Close()
+		return s.Listener.Close()
 	}
 
 	close(s.closing)
@@ -101,7 +163,8 @@ func mapper(input interface{}, output chan interface{}) {
 		tags := p.Tags().Map()
 		var status_code int64
 		var err error
-		var host, serverName, mapKey, path string
+		var host, serverName, mapKey, path, measurement string
+		measurement = p.Name()
 		for k, v := range tags {
 			switch k {
 			case "host":
@@ -118,7 +181,7 @@ func mapper(input interface{}, output chan interface{}) {
 			}
 		}
 
-		mapKey = host + "," + serverName + "," + path
+		mapKey = measurement + "," + host + "," + serverName + "," + path
 
 		fields := p.Fields()
 		rs := RequestStatMapper{}
@@ -142,20 +205,48 @@ func mapper(input interface{}, output chan interface{}) {
 }
 
 type RequestStatReducer struct {
-	totalResponseTime float64
-	totalFailureTimes uint64
-	totalRequestTimes uint64
-
-	statusCodeMap map[int]int
+	fields map[string]interface{}
 }
 
 func (rsr *RequestStatReducer) Update(value RequestStatMapper) {
-	rsr.totalRequestTimes += 1
-	if !value.success {
-		rsr.totalFailureTimes += 1
+	if _, existed := rsr.fields["totalRequestTimes"]; !existed {
+		rsr.fields["totalRequestTimes"] = uint64(1)
+	} else {
+		if val, ok := rsr.fields["totalRequestTimes"].(uint64); ok {
+			rsr.fields["totalRequestTimes"] = val + 1
+		}
 	}
-	rsr.statusCodeMap[value.statusCode] = rsr.statusCodeMap[value.statusCode] + 1
-	rsr.totalResponseTime += value.responseTime
+
+	if !value.success {
+		if _, existed := rsr.fields["totalFailureTimes"]; !existed {
+			rsr.fields["totalFailureTimes"] = uint64(1)
+		} else {
+			if val, ok := rsr.fields["totalFailureTimes"].(uint64); ok {
+				rsr.fields["totalFailureTimes"] = val + 1
+			}
+		}
+	}
+	codeStr := fmt.Sprintf("%d", value.statusCode)
+	if _, existed := rsr.fields[codeStr]; !existed {
+		rsr.fields[codeStr] = uint64(1)
+	} else {
+		if val, ok := rsr.fields[codeStr].(uint64); ok {
+			rsr.fields[codeStr] = val + 1
+		}
+	}
+
+	if _, existed := rsr.fields["totalResponseTime"]; !existed {
+		rsr.fields["totalResponseTime"] = float64(value.responseTime)
+	} else {
+		if val, ok := rsr.fields["totalResponseTime"].(float64); ok {
+			rsr.fields["totalResponseTime"] = val + value.responseTime
+		}
+
+	}
+}
+
+func (rsr *RequestStatReducer) Fields() map[string]interface{} {
+	return rsr.fields
 }
 
 //map[string]RequestStatReducer
@@ -166,7 +257,7 @@ func reducer(input chan interface{}, output chan interface{}) {
 			va, exists := results[key]
 			if !exists {
 				rsr := RequestStatReducer{}
-				rsr.statusCodeMap = make(map[int]int)
+				rsr.fields = make(map[string]interface{})
 				rsr.Update(value)
 				results[key] = rsr
 			} else {

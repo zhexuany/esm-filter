@@ -12,13 +12,21 @@ const (
 	DefaultHostName = "localhost"
 	// DefaultBindAddress is the default address to bind to
 	DefaultBindAddress = "55555"
+
+	DefaultDownstream = "localhost:8086"
+
+	DefaultTicket = 10
+
+	DefaultDatabase = "sla"
 )
 
 type Config struct {
-	HostName    string `toml:"http-hostname"`
-	BindAddress string `toml:"http-bind-address"`
+	HostName    string `toml:"hostname"`
+	BindAddress string `toml:"bind-address"`
+	Downstream  string `toml:"downstream"`
+	Database    string `toml:"database"`
 
-	ExpiredTime time.Duration `toml:"expired-time"`
+	Ticket time.Duration `toml:"expired-time"`
 }
 
 func ParseConfig(path string) (*Config, error) {
@@ -38,5 +46,8 @@ func NewDemoConfig() *Config {
 	return &Config{
 		HostName:    DefaultHostName,
 		BindAddress: DefaultBindAddress,
+		Downstream:  DefaultDownstream,
+		Ticket:      DefaultTicket,
+		Database:    DefaultDatabase,
 	}
 }
