@@ -24,7 +24,6 @@ type Server struct {
 	client *client.Client
 
 	logOutput io.Writer
-	opened    bool
 
 	points influxDBClient.BatchPoints
 
@@ -36,8 +35,6 @@ type Server struct {
 	downstream string
 }
 
-var ErrServerOpened = errors.New("Server is already opened")
-
 func NewServer(c *client.Config) *Server {
 	return &Server{
 		Logger:      log.New(os.Stderr, "", log.LstdFlags),
@@ -45,7 +42,6 @@ func NewServer(c *client.Config) *Server {
 		err:         make(chan error),
 		closing:     make(chan struct{}),
 		logOutput:   os.Stderr,
-		opened:      false,
 		client:      client.NewClient(c),
 		ticker:      time.NewTicker(c.Ticket),
 		downstream:  c.Downstream,
@@ -63,11 +59,8 @@ func (s *Server) SetLogOutput(w io.Writer) error {
 	return nil
 }
 
+// Open is a function which open server instance.
 func (s *Server) Open() error {
-
-	//TODO revist this later
-	//updated opened at end of Open function
-	s.opened = true
 	if err := s.client.Open(); err != nil {
 		return nil
 	}
