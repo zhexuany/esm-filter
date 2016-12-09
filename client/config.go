@@ -11,7 +11,7 @@ const (
 	// DefaultHostName is the default hostname if one is not provided.
 	DefaultHostName = "localhost"
 	// DefaultBindAddress is the default address to bind to
-	DefaultBindAddress = "8286"
+	DefaultBindAddress = ":8286"
 
 	DefaultDownstream = "localhost:8086"
 
