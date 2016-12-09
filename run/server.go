@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"log"
-	"net"
 	"os"
 
 	"fmt"
@@ -20,8 +19,7 @@ import (
 type Server struct {
 	BindAddress string
 
-	Listener net.Listener
-	Logger   *log.Logger
+	Logger *log.Logger
 
 	client *client.Client
 
@@ -44,6 +42,8 @@ func NewServer(c *client.Config) *Server {
 	return &Server{
 		Logger:      log.New(os.Stderr, "", log.LstdFlags),
 		BindAddress: c.BindAddress,
+		err:         make(chan error),
+		closing:     make(chan struct{}),
 		logOutput:   os.Stderr,
 		opened:      false,
 		client:      client.NewClient(c),
@@ -140,8 +140,8 @@ func (s *Server) write() {
 func (s *Server) Err() <-chan error { return s.err }
 
 func (s *Server) Close() error {
-	if s.Listener != nil {
-		return s.Listener.Close()
+	if s.client != nil {
+		return s.client.Close()
 	}
 
 	close(s.closing)

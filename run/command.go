@@ -11,8 +11,6 @@ import (
 )
 
 const logo = `
-
-
 8888888888  .d8888b.  888b     d888         .d888 d8b 888 888                    
 888        d88P  Y88b 8888b   d8888        d88P"  Y8P 888 888                    
 888        Y88b.      88888b.d88888        888        888 888                    
@@ -65,7 +63,7 @@ func (cmd *Command) Run(args ...string) error {
 		cmd.Version, cmd.Branch, cmd.Commit)
 	log.Printf("Go version %s, GOMAXPROCS set to %d", runtime.Version(), runtime.GOMAXPROCS(0))
 
-	log.Println(options.GetConfigPath())
+	// log.Println(options.GetConfigPath())
 
 	config, err := client.ParseConfig(options.GetConfigPath())
 	if err != nil {
@@ -73,6 +71,10 @@ func (cmd *Command) Run(args ...string) error {
 	}
 	//TODO create a new server
 	cmd.Server = NewServer(config)
+	if err := cmd.Server.Open(); err != nil {
+		return fmt.Errorf("open server: %s", err)
+	}
+
 	return nil
 }
 

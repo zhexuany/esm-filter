@@ -16,15 +16,12 @@ const (
 	DefaultDownstream = "localhost:8086"
 
 	DefaultTicket = 10
-
-	DefaultDatabase = "sla"
 )
 
 type Config struct {
 	HostName    string `toml:"hostname"`
 	BindAddress string `toml:"bind-address"`
 	Downstream  string `toml:"downstream"`
-	Database    string `toml:"database"`
 
 	Ticket time.Duration `toml:"expired-time"`
 }
@@ -48,6 +45,5 @@ func NewDemoConfig() *Config {
 		BindAddress: DefaultBindAddress,
 		Downstream:  DefaultDownstream,
 		Ticket:      DefaultTicket,
-		Database:    DefaultDatabase,
 	}
 }

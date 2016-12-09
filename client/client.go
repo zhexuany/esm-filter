@@ -35,7 +35,10 @@ func (c *Client) Open() error {
 }
 
 func (c *Client) Close() error {
-	return c.ln.Close()
+	if c.ln != nil {
+		return c.ln.Close()
+	}
+	return nil
 }
 
 func (c *Client) Read() ([]byte, error) {

@@ -88,12 +88,20 @@ func ParseCommandName(args []string) (string, []string) {
 
 func (m *Main) Run(args ...string) error {
 	name, args := ParseCommandName(args)
-	cmd := run.NewCommand()
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-	m.Logger.Println("Listening for signals")
 	switch name {
 	case "", "run":
+		cmd := run.NewCommand()
+		// Tell the server the build details.
+		cmd.Version = version
+		cmd.Commit = commit
+		cmd.Branch = branch
+
+		cmd.Run(args...)
+
+		signalCh := make(chan os.Signal, 1)
+		signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+		m.Logger.Println("Listening for signals")
+
 		// Block until one of the signals above is received
 		select {
 		case <-signalCh:
@@ -111,8 +119,8 @@ func (m *Main) Run(args ...string) error {
 			m.Logger.Println("second signal received, initializing hard shutdown")
 		case <-time.After(time.Second * 30):
 			m.Logger.Println("time limit reached, initializing hard shutdown")
-			// case <-cmd.Closed:
-			// m.Logger.Println("server shutdown completed")
+		case <-cmd.Closed:
+			m.Logger.Println("server shutdown completed")
 		}
 
 	case "config":
