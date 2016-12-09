@@ -1,7 +1,6 @@
 package run
 
 import (
-	"errors"
 	"io"
 	"log"
 	"os"
@@ -32,10 +31,13 @@ type Server struct {
 
 	ticker *time.Ticker
 
+	w writer
+
 	downstream string
 }
 
 func NewServer(c *client.Config) *Server {
+	w := NewSimplerWriter(c.Downstream)
 	return &Server{
 		Logger:      log.New(os.Stderr, "", log.LstdFlags),
 		BindAddress: c.BindAddress,
@@ -45,15 +47,13 @@ func NewServer(c *client.Config) *Server {
 		client:      client.NewClient(c),
 		ticker:      time.NewTicker(c.Ticket),
 		downstream:  c.Downstream,
+		w:           w,
 	}
 }
 
 // SetLogOutput sets the logger used for all messages. It must not be called
 // after the Open method has been called.
 func (s *Server) SetLogOutput(w io.Writer) error {
-	if s.opened {
-		return ErrServerOpened
-	}
 	s.Logger = log.New(os.Stderr, "", log.LstdFlags)
 	s.logOutput = w
 	return nil
@@ -79,7 +79,7 @@ func (s *Server) Run() {
 					//got a tick, break it
 					case <-s.ticker.C:
 						close(inputChan)
-						s.write()
+						s.w.write(s.points)
 						break
 					default:
 						//keep reading until receive a tick
@@ -119,15 +119,32 @@ func (s *Server) Run() {
 	}
 }
 
-func (s *Server) write() {
+type writer interface {
+	write(interface{})
+}
+
+type simpleWriter struct {
+	UDPConfig influxDBClient.UDPConfig
+	UDPClient influxDBClient.Client
+}
+
+func NewSimplerWriter(url string) *simpleWriter {
 	udpConfig := influxDBClient.UDPConfig{
-		Addr: s.downstream,
+		Addr: url,
 	}
 	udpClient, err := influxDBClient.NewUDPClient(udpConfig)
 	if err != nil {
-		s.logOutput.Write([]byte("failed to create udpClient"))
+		fmt.Println("failed to create UDPClient")
 	}
-	udpClient.Write(s.points)
+	return &simpleWriter{
+		UDPClient: udpClient,
+	}
+}
+
+func (sw *simpleWriter) write(data interface{}) {
+	if bp, ok := data.(influxDBClient.BatchPoints); ok {
+		sw.UDPClient.Write(bp)
+	}
 }
 
 func (s *Server) Err() <-chan error { return s.err }
@@ -141,6 +158,7 @@ func (s *Server) Close() error {
 	return nil
 }
 
+//TODO think about where to palce mapreduce method code
 type RequestStatMapper struct {
 	success      bool
 	statusCode   int
