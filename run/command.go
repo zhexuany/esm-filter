@@ -75,8 +75,8 @@ func (cmd *Command) Run(args ...string) error {
 		log.Fatalf("open server: %s", err)
 	}
 
-	log.Printf("Server to Run")
-	cmd.Server.Run()
+	log.Printf("Server start to Run")
+	go cmd.Server.Run()
 
 	return nil
 }

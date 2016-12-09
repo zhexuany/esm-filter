@@ -34,10 +34,20 @@ type Server struct {
 	w writer
 
 	downstream string
+
+	BPConfig influxDBClient.BatchPointsConfig
 }
 
 func NewServer(c *client.Config) *Server {
 	w := NewSimplerWriter(c.Downstream)
+	//TODO need add this in config
+	BPConfog := influxDBClient.BatchPointsConfig{
+		Precision:        "s",
+		Database:         "sla",
+		RetentionPolicy:  "",
+		WriteConsistency: "one",
+	}
+
 	return &Server{
 		Logger:      log.New(os.Stderr, "", log.LstdFlags),
 		BindAddress: c.BindAddress,
@@ -45,9 +55,10 @@ func NewServer(c *client.Config) *Server {
 		closing:     make(chan struct{}),
 		logOutput:   os.Stderr,
 		client:      client.NewClient(c),
-		ticker:      time.NewTicker(c.Ticket),
+		ticker:      time.NewTicker(c.Ticket * time.Second),
 		downstream:  c.Downstream,
 		w:           w,
+		BPConfig:    BPConfog,
 	}
 }
 
@@ -61,61 +72,68 @@ func (s *Server) SetLogOutput(w io.Writer) error {
 
 // Open is a function which open server instance.
 func (s *Server) Open() error {
+	s.points, _ = influxDBClient.NewBatchPoints(s.BPConfig)
 	if err := s.client.Open(); err != nil {
-		return nil
+		return fmt.Errorf("failed to open udpClient to read", err)
 	}
-
 	return nil
 }
 
+// Run will keep read from port and buffer the results
 func (s *Server) Run() {
+	stopChan := make(chan bool, 1)
+	inputChan := make(chan interface{})
+	go s.filter(inputChan, stopChan)
+	for _ = range s.ticker.C {
+		stopChan <- true
+		stopChan = make(chan bool, 1)
+		inputChan = make(chan interface{})
+		go s.filter(inputChan, stopChan)
+	}
+}
+
+func (s *Server) filter(inputChan chan interface{}, stopChan chan bool) {
+	go func() {
+		results := mapreduce.MapReduce(mapper, reducer, inputChan)
+		//every key and value is a point
+		// fmt.Println("process results from mapreduce", results)
+		if res, ok := results.(map[string]RequestStatReducer); ok {
+			for key, value := range res {
+				tags := make(map[string]string)
+				tagValueStr := strings.Split(key, ",")
+				if len(tagValueStr) == 4 {
+					tags["host"] = tagValueStr[1]
+					tags["server_name"] = tagValueStr[2]
+					tags["path"] = tagValueStr[3]
+				}
+
+				p, err := influxDBClient.NewPoint(tagValueStr[0], tags, value.Fields(), time.Now().UTC())
+				if err != nil {
+					s.logOutput.Write([]byte("failed to parse points"))
+				}
+				s.points.AddPoint(p)
+			}
+		}
+
+		bp := s.points
+		go s.w.write(bp)
+		s.points, _ = influxDBClient.NewBatchPoints(s.BPConfig)
+	}()
+
+	//keep read until inputChan is nil
 	for {
-		var inputChan chan interface{}
-		go func() {
-			for {
-				inputChan = make(chan interface{})
-				for {
-					select {
-					//got a tick, break it
-					case <-s.ticker.C:
-						close(inputChan)
-						s.w.write(s.points)
-						break
-					default:
-						//keep reading until receive a tick
-						buf, err := s.client.Read()
-						if err != nil {
-							s.logOutput.Write([]byte("failed to read udp packet"))
-						} else {
-							inputChan <- buf
-						}
-					}
+		buf, err := s.client.Read()
+		if err != nil {
+			s.logOutput.Write([]byte("failed to read udp packet"))
+		} else {
+			select {
+			case _, ok := <-stopChan:
+				if ok {
+					return
 				}
+			case inputChan <- buf:
 			}
-		}()
-
-		go func() {
-			results := mapreduce.MapReduce(mapper, reducer, inputChan)
-			//every key and value is a point
-			if res, ok := results.(map[string]RequestStatReducer); ok {
-				for key, value := range res {
-					tags := make(map[string]string)
-					tagValueStr := strings.Split(key, ",")
-					if len(tagValueStr) == 4 {
-						tags["host"] = tagValueStr[1]
-						tags["server_name"] = tagValueStr[2]
-						tags["path"] = tagValueStr[3]
-					}
-
-					p, err := influxDBClient.NewPoint(tagValueStr[0], tags, value.Fields(), time.Now().UTC())
-					if err != nil {
-						s.logOutput.Write([]byte("failed to parse points"))
-					}
-					s.points.AddPoint(p)
-				}
-			}
-
-		}()
+		}
 	}
 }
 
@@ -144,6 +162,8 @@ func NewSimplerWriter(url string) *simpleWriter {
 func (sw *simpleWriter) write(data interface{}) {
 	if bp, ok := data.(influxDBClient.BatchPoints); ok {
 		sw.UDPClient.Write(bp)
+	} else {
+		fmt.Println("failed to write")
 	}
 }
 

@@ -10,6 +10,7 @@ var (
 )
 
 type Client struct {
+	hostname string
 	bindAddr string
 	ln       *net.UDPConn
 }
@@ -20,7 +21,8 @@ func NewClient(config *Config) *Client {
 }
 
 func (c *Client) Open() error {
-	serverAddr, err := net.ResolveUDPAddr("udp", c.bindAddr)
+	ip := c.hostname + c.bindAddr
+	serverAddr, err := net.ResolveUDPAddr("udp", ip)
 	if err != nil {
 		return err
 	}
