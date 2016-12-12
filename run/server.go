@@ -1,18 +1,19 @@
 package run
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
-	"fmt"
 	influxDBClient "github.com/influxdata/influxdb/client/v2"
 	"github.com/influxdata/influxdb/models"
 	"github.com/zhexuany/esm-filter/client"
 	"github.com/zhexuany/esm-filter/mapreduce"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type Server struct {
@@ -39,7 +40,10 @@ type Server struct {
 }
 
 func NewServer(c *client.Config) *Server {
-	w := NewSimplerWriter(c.Downstream)
+	w, err := NewSimplerWriter(c.Downstream)
+	if err != nil {
+		return nil
+	}
 	//TODO need add this in config
 	BPConfog := influxDBClient.BatchPointsConfig{
 		Precision:        "s",
@@ -96,7 +100,6 @@ func (s *Server) filter(inputChan chan interface{}, stopChan chan bool) {
 	go func() {
 		results := mapreduce.MapReduce(mapper, reducer, inputChan)
 		//every key and value is a point
-		// fmt.Println("process results from mapreduce", results)
 		if res, ok := results.(map[string]RequestStatReducer); ok {
 			for key, value := range res {
 				tags := make(map[string]string)
@@ -124,10 +127,12 @@ func (s *Server) filter(inputChan chan interface{}, stopChan chan bool) {
 	for {
 		buf, err := s.client.Read()
 		if err != nil {
-			s.logOutput.Write([]byte("failed to read udp packet"))
+			s.logOutput.Write([]byte(err.Error()))
 		} else {
 			select {
 			case _, ok := <-stopChan:
+				//if stopChan is received, just terminate this goroutine
+				//otherwise, we keep send buf to inputChan
 				if ok {
 					return
 				}
@@ -137,8 +142,13 @@ func (s *Server) filter(inputChan chan interface{}, stopChan chan bool) {
 	}
 }
 
+var (
+	ErrFailedWrite           = errors.New("failed to write\n")
+	ErrFailedCreateUDPClient = errors.New("failed to create UDPClient\n")
+)
+
 type writer interface {
-	write(interface{})
+	write(interface{}) error
 }
 
 type simpleWriter struct {
@@ -146,25 +156,28 @@ type simpleWriter struct {
 	UDPClient influxDBClient.Client
 }
 
-func NewSimplerWriter(url string) *simpleWriter {
+func NewSimplerWriter(url string) (*simpleWriter, error) {
 	udpConfig := influxDBClient.UDPConfig{
 		Addr: url,
 	}
 	udpClient, err := influxDBClient.NewUDPClient(udpConfig)
 	if err != nil {
-		fmt.Println("failed to create UDPClient")
+		return nil, err
+		// fmt.Println("failed to create UDPClient")
 	}
 	return &simpleWriter{
 		UDPClient: udpClient,
-	}
+	}, nil
 }
 
-func (sw *simpleWriter) write(data interface{}) {
+func (sw *simpleWriter) write(data interface{}) error {
 	if bp, ok := data.(influxDBClient.BatchPoints); ok {
 		sw.UDPClient.Write(bp)
 	} else {
-		fmt.Println("failed to write")
+		// fmt.Println("failed to write")
+		return ErrFailedWrite
 	}
+	return nil
 }
 
 func (s *Server) Err() <-chan error { return s.err }
@@ -178,7 +191,6 @@ func (s *Server) Close() error {
 	return nil
 }
 
-//TODO think about where to palce mapreduce method code
 type RequestStatMapper struct {
 	success      bool
 	statusCode   int

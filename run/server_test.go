@@ -7,7 +7,22 @@ import (
 	"testing"
 )
 
-// func TestServer_d
+func TestServer_Run(t *testing.T) {
+	testKey := "requests,qcr-web-proxy-66,restapi.ele.me,/ping"
+	requestTime := 10
+	responseTime := 0.001
+	test := "requests,host=qcr-web-proxy-66,upstream=127.0.0.1:8444,status_code=503,server_name=restapi.ele.me,method=GET,path=/ping response_time=0.001,response_size=227 1481175443530312000"
+
+	inputChan := make(chan interface{})
+
+	go func() {
+		for i := 0; i < requestTime; i++ {
+			inputChan <- []byte(test)
+		}
+		close(inputChan)
+	}()
+}
+
 func TestServer_MapReduce(t *testing.T) {
 	testKey := "requests,qcr-web-proxy-66,restapi.ele.me,/ping"
 	requestTime := 10

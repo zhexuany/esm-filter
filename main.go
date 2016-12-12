@@ -96,7 +96,9 @@ func (m *Main) Run(args ...string) error {
 		cmd.Commit = commit
 		cmd.Branch = branch
 
-		cmd.Run(args...)
+		if err := cmd.Run(args...); err != nil {
+			return fmt.Errorf("failed to run %v", err)
+		}
 
 		signalCh := make(chan os.Signal, 1)
 		signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
@@ -123,9 +125,14 @@ func (m *Main) Run(args ...string) error {
 			m.Logger.Println("server shutdown completed")
 		}
 
+		//TODO add help cmd option
+	// case "help":
+	// if err := help.NewCommand().Run(args...); err != nil {
+	// return fmt.Errorf("help: %s", err)
+	// }
 	case "config":
-		if err := NewVersionCommand().Run(args...); err != nil {
-			return fmt.Errorf("version: %s", err)
+		if err := run.NewPrintConfigCommand().Run(args...); err != nil {
+			return fmt.Errorf("config: %s", err)
 		}
 	default:
 		return fmt.Errorf(`unknown command "%s"`+"\n"+`Run esm-filter help for usgae`+"\n\n", name)
@@ -153,7 +160,7 @@ func (cmd *VersionCommand) Run(args ...string) error {
 		return err
 	}
 
-	// fmt.Fprintln(cmd.Std, "esm-filter v%s (git : %s %s)", version, branch, commit)
+	fmt.Fprintf(cmd.Stdout, "esm-filter v%s (git : %s %s)", version, branch, commit)
 	return nil
 }
 

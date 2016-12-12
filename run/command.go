@@ -69,7 +69,7 @@ func (cmd *Command) Run(args ...string) error {
 	if err != nil {
 		return fmt.Errorf("parse config:%s", err)
 	}
-	//TODO create a new server
+	// Create a new server
 	cmd.Server = NewServer(config)
 	if err := cmd.Server.Open(); err != nil {
 		log.Fatalf("open server: %s", err)
@@ -93,7 +93,7 @@ func (cmd *Command) Close() error {
 func (cmd *Command) ParseFlags(args ...string) (Options, error) {
 	var opt Options
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
-	fs.StringVar(&opt.configPath, "config", "", "")
+	fs.StringVar(&opt.ConfigPath, "config", "", "")
 	fs.Usage = func() { fmt.Fprintln(cmd.Stderr, usage) }
 	if err := fs.Parse(args); err != nil {
 		return Options{}, err
@@ -103,7 +103,7 @@ func (cmd *Command) ParseFlags(args ...string) (Options, error) {
 }
 
 type Options struct {
-	configPath string
+	ConfigPath string
 }
 
 var usage = `Runs the esm-filter server.
@@ -120,12 +120,12 @@ Usgae esm-filter run [flags]
 `
 
 func (opt *Options) GetConfigPath() string {
-	if opt.configPath != "" {
-		if opt.configPath == os.DevNull {
+	if opt.ConfigPath != "" {
+		if opt.ConfigPath == os.DevNull {
 			return ""
 		}
-		return opt.configPath
-	} else if envVar := os.Getenv("ESM-Filter_CONFIG_PATH"); envVar != "" {
+		return opt.ConfigPath
+	} else if envVar := os.Getenv("ESM_Filter_CONFIG_PATH"); envVar != "" {
 		return envVar
 	}
 
