@@ -45,7 +45,10 @@ func (cmd *PrintConfigCommand) Run(args ...string) error {
 		return fmt.Errorf("apply enc config: %v", err)
 	}
 
-	//check config is valid or not TODO
+	//check config is valid or not
+	if err := config.Validate(); err != nil {
+		return fmt.Errorf("%s. To generate a valid configuration file run `esm-filter config > esm_filter.generated.conf`", err)
+	}
 
 	toml.NewEncoder(cmd.Stdout).Encode(config)
 	fmt.Fprint(cmd.Stdout, "\n")

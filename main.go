@@ -39,7 +39,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	m := NewMain()
 	if err := m.Run(os.Args[1:]...); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to Run ", err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -97,7 +97,7 @@ func (m *Main) Run(args ...string) error {
 		cmd.Branch = branch
 
 		if err := cmd.Run(args...); err != nil {
-			return fmt.Errorf("failed to run %v", err)
+			return fmt.Errorf("run: %s", err)
 		}
 
 		signalCh := make(chan os.Signal, 1)

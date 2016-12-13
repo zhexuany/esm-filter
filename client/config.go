@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"errors"
 	"github.com/BurntSushi/toml"
 )
 
@@ -145,16 +146,35 @@ func (c *Config) applyEnvOverrides(prefix string, spec reflect.Value) error {
 	return nil
 }
 
+func (c *Config) Validate() error {
+	if c.BindAddress == "" {
+		return errors.New("BindAddress must be specified")
+	}
+
+	if c.HostName == "" {
+		return errors.New("HostName must be specified")
+	}
+
+	if c.Downstream == "" {
+		return errors.New("Downstream must be specified")
+	}
+
+	if c.Ticket == 0 {
+		return errors.New("Ticket must be specified")
+	}
+
+	return nil
+}
 func ParseConfig(path string) (*Config, error) {
 	if path == "" {
 		return NewDemoConfig(), nil
 	}
-	config := Config{}
+	config := &Config{}
 	if _, err := toml.DecodeFile(path, config); err != nil {
 		return nil, err
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 func NewDemoConfig() *Config {

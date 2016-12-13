@@ -63,11 +63,18 @@ func (cmd *Command) Run(args ...string) error {
 		cmd.Version, cmd.Branch, cmd.Commit)
 	log.Printf("Go version %s, GOMAXPROCS set to %d", runtime.Version(), runtime.GOMAXPROCS(0))
 
-	// log.Println(options.GetConfigPath())
+	configPath := options.GetConfigPath()
+	if configPath != "" {
+		log.Println("using config: ", configPath)
+	}
 
-	config, err := client.ParseConfig(options.GetConfigPath())
+	config, err := client.ParseConfig(configPath)
 	if err != nil {
 		return fmt.Errorf("parse config:%s", err)
+	}
+
+	if err := config.Validate(); err != nil {
+		return fmt.Errorf("%s. To generate a valid configuration file run `esm-filter config > esm_filter.generated.conf`", err)
 	}
 	// Create a new server
 	cmd.Server = NewServer(config)
