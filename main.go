@@ -130,6 +130,10 @@ func (m *Main) Run(args ...string) error {
 		if err := run.NewPrintConfigCommand().Run(args...); err != nil {
 			return fmt.Errorf("config: %s", err)
 		}
+	case "version":
+		if err := NewVersionCommand().Run(args...); err != nil {
+			return fmt.Errorf("version: %s", err)
+		}
 	default:
 		return fmt.Errorf(`unknown command "%s"`+"\n"+`Run esm-filter help for usgae`+"\n\n", name)
 	}
@@ -156,7 +160,7 @@ func (cmd *VersionCommand) Run(args ...string) error {
 		return err
 	}
 
-	fmt.Fprintf(cmd.Stdout, "esm-filter v%s (git : %s %s)", version, branch, commit)
+	fmt.Fprintf(cmd.Stdout, "esm-filter %s (git : %s %s)\n", version, branch, commit)
 	return nil
 }
 
