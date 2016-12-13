@@ -59,7 +59,7 @@ Usage: esm-filter config [flags]
 
     -config <path>
             Set the path to the initial configuration file.
-            This defaults to the environment variable ESM-FILTER_CONFIG_PATH,
+            This defaults to the environment variable ESM_FILTER_CONFIG_PATH,
             ~/.esm-filter/esm-filter.conf, or /etc/esm-filter/esm-filter.conf if a file
             is present at any of these locations.
             Disable the automatic loading of a configuration file using

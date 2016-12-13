@@ -124,12 +124,8 @@ func (m *Main) Run(args ...string) error {
 		case <-cmd.Closed:
 			m.Logger.Println("server shutdown completed")
 		}
-
-		//TODO add help cmd option
-	// case "help":
-	// if err := help.NewCommand().Run(args...); err != nil {
-	// return fmt.Errorf("help: %s", err)
-	// }
+	case "help":
+		fmt.Fprintln(os.Stdout, strings.TrimSpace(helpUsage))
 	case "config":
 		if err := run.NewPrintConfigCommand().Run(args...); err != nil {
 			return fmt.Errorf("config: %s", err)
@@ -167,4 +163,16 @@ func (cmd *VersionCommand) Run(args ...string) error {
 var versionUsage = `Display the esm-filter version, build branch and git commit hash.
 
 Usgae: esm-filter version
+`
+var helpUsage = `Runs the esm-filter server.
+
+Usgae esm-filter run [flags]
+
+    -config <path>
+            Set the path to the configuration file.
+            This defaults to the environment variable ESM-FILTER_CONFIG_PATH,
+            ~/.esm-filter/esm-filter.conf, or /etc/esm-filter/esm-filter.conf if a file
+            is present at any of these locations.
+            Disable the automatic loading of a configuration file using
+            the null device (such as /dev/null).
 `

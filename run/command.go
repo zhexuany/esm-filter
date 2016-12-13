@@ -94,6 +94,7 @@ func (cmd *Command) ParseFlags(args ...string) (Options, error) {
 	var opt Options
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
 	fs.StringVar(&opt.ConfigPath, "config", "", "")
+	// fs.StringVar(nil, "help", "", "")
 	fs.Usage = func() { fmt.Fprintln(cmd.Stderr, usage) }
 	if err := fs.Parse(args); err != nil {
 		return Options{}, err
