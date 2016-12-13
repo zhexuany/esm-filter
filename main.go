@@ -168,15 +168,16 @@ var versionUsage = `Display the esm-filter version, build branch and git commit 
 
 Usgae: esm-filter version
 `
-var helpUsage = `Runs the esm-filter server.
+var helpUsage = `Configure and start a esm-filter server.
 
-Usgae esm-filter run [flags]
+Usage: esm-filter [[command] [arguments]]
 
-    -config <path>
-            Set the path to the configuration file.
-            This defaults to the environment variable ESM-FILTER_CONFIG_PATH,
-            ~/.esm-filter/esm-filter.conf, or /etc/esm-filter/esm-filter.conf if a file
-            is present at any of these locations.
-            Disable the automatic loading of a configuration file using
-            the null device (such as /dev/null).
+The commands are:
+
+config               display the default configuration
+help                 display this help message
+run                  run node with existing configuration
+version              displays the esm-filter version
+
+run is the default command.
 `
